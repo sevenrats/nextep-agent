@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# venv / uv
+.venv/
+.python-version
+
+# test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# editor / tooling
+.claude/
+.idea/
+.vscode/
+
+# secrets / local creds (never commit)
+*.pem
+*.key
