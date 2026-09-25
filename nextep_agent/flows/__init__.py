@@ -31,7 +31,7 @@ def make_runner(
     if key == (FlowType.EXTERNAL, FlowMethod.DNS_01):
         from nextep_agent.flows.external_acme import ExternalAcmeRunner
 
-        return ExternalAcmeRunner(flow, org)
+        return ExternalAcmeRunner(flow, org, defaults)
 
     raise ValueError(
         f"no runner for flow type={flow.type} method={flow.method} "

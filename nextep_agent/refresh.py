@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING
 
 from nextep_agent.client.config_client import ConfigClient
 from nextep_agent.client.report_client import ReportClient
-from nextep_agent.config.models import AgentConfig, config_path
+from nextep_agent.config.models import AgentConfig
+from nextep_agent.config.models import config_path as config_path_default
 from nextep_agent.flows import make_runner
 from nextep_agent.flows.base import BootstrapDefaults
 from nextep_agent.renewal_timing import compute_next_run
@@ -43,6 +44,8 @@ class RefreshService:
         provisioner: str = "",
         cert_output_path: str = "",
         key_output_path: str = "",
+        config_path: str = "",
+        acme_admin_email: str = "",
     ) -> None:
         self.logger = getLogger("refresh")
         self._spog_url = spog_url
@@ -53,6 +56,8 @@ class RefreshService:
         self._provisioner = provisioner
         self._cert_output_path = cert_output_path
         self._key_output_path = key_output_path
+        self._config_path = config_path or config_path_default()
+        self._acme_admin_email = acme_admin_email
         self._scheduler = scheduler
         self._config: AgentConfig | None = None
         #: last computed next-run per job id, for local status display
@@ -89,6 +94,7 @@ class RefreshService:
             provisioner=self._provisioner,
             cert_output_path=self._cert_output_path,
             key_output_path=self._key_output_path,
+            acme_admin_email=self._acme_admin_email,
         )
 
     # -- top-level refresh ----------------------------------------------------
@@ -98,7 +104,7 @@ class RefreshService:
         self._config = cfg
         try:
             cfg_str = AgentConfig.dumps(cfg)
-            path = config_path()
+            path = self._config_path
             import os
 
             os.makedirs(os.path.dirname(path), exist_ok=True)

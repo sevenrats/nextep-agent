@@ -18,6 +18,8 @@ class _FakeOrg(AbstractOrganizationConfig):
     machine_key_path = "/org/machine.key"
     cert_output_path = "/org/service.pem"
     key_output_path = "/org/service.key"
+    config_path = "/org/config.json"
+    acme_admin_email = "certs@example.com"
 
 
 def _clear_nextep_env(monkeypatch):

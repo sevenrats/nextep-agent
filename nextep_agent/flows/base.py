@@ -51,6 +51,8 @@ class BootstrapDefaults:
     # Output paths used when the server serves the flow's paths empty.
     cert_output_path: str = ""
     key_output_path: str = ""
+    # External (ACME) flow: contact email for account registration.
+    acme_admin_email: str = ""
 
 
 class FlowRunner(ABC):

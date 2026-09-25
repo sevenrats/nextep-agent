@@ -9,7 +9,14 @@ config-pull and report clients use this.
 
 from __future__ import annotations
 
+import os
 import ssl
+
+
+def _require(path: str, purpose: str) -> str:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{purpose} not found: {path}")
+    return path
 
 
 def build_mtls_context(
@@ -23,6 +30,12 @@ def build_mtls_context(
     httpx does not use the OS trust store, so it must be supplied for a private
     CA. If omitted, the system default trust is used.
     """
-    ctx = ssl.create_default_context(cafile=ca_path) if ca_path else ssl.create_default_context()
+    if ca_path:
+        _require(ca_path, "smallstep root bundle (verifies smallhelp's TLS)")
+        ctx = ssl.create_default_context(cafile=ca_path)
+    else:
+        ctx = ssl.create_default_context()
+    _require(client_cert_path, "machine cert (mTLS client credential)")
+    _require(client_key_path, "machine key (mTLS client credential)")
     ctx.load_cert_chain(client_cert_path, client_key_path)
     return ctx

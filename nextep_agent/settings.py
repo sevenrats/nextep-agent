@@ -32,6 +32,8 @@ class Settings:
     provisioner: str
     cert_output_path: str
     key_output_path: str
+    config_path: str
+    acme_admin_email: str
 
     @classmethod
     def from_env(cls, org: AbstractOrganizationConfig) -> "Settings":
@@ -51,4 +53,6 @@ class Settings:
             provisioner=org.provisioner,
             cert_output_path=org.cert_output_path,
             key_output_path=org.key_output_path,
+            config_path=org.config_path,
+            acme_admin_email=org.acme_admin_email,
         )

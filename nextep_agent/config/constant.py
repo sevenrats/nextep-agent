@@ -39,4 +39,5 @@ class AcmeProvider(StrEnum):
     """Which ACME CA the external flow targets."""
 
     LETSENCRYPT = "letsencrypt"
+    LETSENCRYPT_STAGING = "letsencrypt-staging"
     INTERNAL_ACME = "internal-acme"

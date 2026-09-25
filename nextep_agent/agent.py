@@ -50,6 +50,8 @@ async def lifespan(app: FastAPI):
         provisioner=settings.provisioner,
         cert_output_path=settings.cert_output_path,
         key_output_path=settings.key_output_path,
+        config_path=settings.config_path,
+        acme_admin_email=settings.acme_admin_email,
     )
     app.state.scheduler = scheduler
     app.state.refresh = refresh

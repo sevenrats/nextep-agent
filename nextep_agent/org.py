@@ -53,6 +53,12 @@ class AbstractOrganizationConfig(ABC):
 
     @property
     @abstractmethod
+    def config_path(self) -> str:
+        """Where the pulled AgentConfig is cached on disk (read back by
+        ``status``)."""
+
+    @property
+    @abstractmethod
     def cert_output_path(self) -> str:
         """Fallback service-cert output path when a flow serves none."""
 
@@ -60,3 +66,8 @@ class AbstractOrganizationConfig(ABC):
     @abstractmethod
     def key_output_path(self) -> str:
         """Fallback service-key output path when a flow serves none."""
+
+    @property
+    @abstractmethod
+    def acme_admin_email(self) -> str:
+        """Contact email for the external (ACME) flow's account registration."""

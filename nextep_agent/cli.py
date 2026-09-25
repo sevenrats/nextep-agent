@@ -15,14 +15,14 @@ from datetime import datetime, timezone
 
 from cryptography import x509
 
-from nextep_agent.config.models import AgentConfig, config_path
+from nextep_agent.config.models import AgentConfig
 from nextep_agent.renewal_timing import compute_next_run
 from nextep_agent.settings import Settings
 
 
-def _load_persisted() -> AgentConfig | None:
+def _load_persisted(path: str) -> AgentConfig | None:
     try:
-        with open(config_path()) as fh:
+        with open(path) as fh:
             return AgentConfig.loads(fh.read())
     except FileNotFoundError:
         return None
@@ -37,10 +37,11 @@ def _cert_not_after(path: str) -> datetime | None:
         return None
 
 
-def cmd_status(_args, _org) -> int:
-    cfg = _load_persisted()
+def cmd_status(_args, org) -> int:
+    path = org.config_path
+    cfg = _load_persisted(path)
     if cfg is None:
-        print("not configured (no config file at %s)" % config_path())
+        print("not configured (no config file at %s)" % path)
         return 0
     print(f"node: {cfg.node_name}")
     now = datetime.now(timezone.utc)
@@ -81,6 +82,8 @@ def cmd_refresh(_args, org) -> int:
         provisioner=settings.provisioner,
         cert_output_path=settings.cert_output_path,
         key_output_path=settings.key_output_path,
+        config_path=settings.config_path,
+        acme_admin_email=settings.acme_admin_email,
     )
     try:
         cfg = svc.refresh()
@@ -108,11 +111,11 @@ WantedBy=multi-user.target
 """
 
 
-def cmd_install(_args, _org) -> int:
+def cmd_install(_args, org) -> int:
     if os.geteuid() != 0:
         print("install must run as root", file=sys.stderr)
         return 2
-    os.makedirs(os.path.dirname(config_path()), exist_ok=True)
+    os.makedirs(os.path.dirname(org.config_path), exist_ok=True)
     exe = sys.argv[0]
     unit_path = "/etc/systemd/system/nextep-agent.service"
     with open(unit_path, "w") as fh:

@@ -74,9 +74,6 @@ def wired(monkeypatch, tmp_path):
         refresh_mod.RefreshService, "_report_client", lambda self: reporter
     )
 
-    # persist to a temp path
-    monkeypatch.setattr(refresh_mod, "config_path", lambda: str(tmp_path / "config.json"))
-
     sched = _FakeScheduler()
     svc = refresh_mod.RefreshService(
         spog_url="https://sh",
@@ -84,6 +81,7 @@ def wired(monkeypatch, tmp_path):
         machine_key_path="/m.key",
         smallstep_root_path=None,
         scheduler=sched,
+        config_path=str(tmp_path / "config.json"),  # persist to a temp path
     )
     return svc, cfg, sched, reporter, tmp_path
 
