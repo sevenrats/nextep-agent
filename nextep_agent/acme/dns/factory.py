@@ -49,52 +49,53 @@ class DnsHandlerFactory:
 
     # -- internal helpers -----------------------------------------------------
 
-    def _lexicon_config(self, domain: str | None = None) -> ConfigResolver:
-        """Create a :class:`ConfigResolver` for the given *domain*,
-        falling back to the configured default zone."""
-        base = self._config.to_lexicon_dict()
-        if domain:
-            base["domain"] = domain
-        return ConfigResolver().with_dict(base)
+    def _lexicon_config(self) -> ConfigResolver:
+        """Create a :class:`ConfigResolver` for the configured DNS zone."""
+        return ConfigResolver().with_dict(self._config.to_lexicon_dict())
 
-    @staticmethod
-    def _relative_name(name: str, domain: str) -> str:
-        """Strip the zone suffix from a fully-qualified record name."""
-        suffix = f".{domain}"
+    def _relative_name(self, name: str) -> str:
+        """Strip the configured zone suffix from a fully-qualified record name.
+
+        The record's zone is the one this handler is configured for
+        (``self._config.domain``), NOT acmeow's per-SAN ``domain`` argument — a
+        SAN like ``test.kvcc.dev`` lives in zone ``kvcc.dev``, so
+        ``_acme-challenge.test.kvcc.dev`` must become ``_acme-challenge.test``.
+        """
+        zone = self._config.domain
+        suffix = f".{zone}"
         if name.endswith(suffix):
             return name[: -len(suffix)]
         return name
 
     def _create_record(self, domain: str, name: str, value: str) -> None:
-        relative = self._relative_name(name, domain)
-        logger.info("_create_record: domain=%r name=%r relative=%r value=%r", domain, name, relative, value)
-        cfg = self._lexicon_config(domain)
+        # `domain` is acmeow's per-SAN base name; the actual zone is in config.
+        relative = self._relative_name(name)
+        cfg = self._lexicon_config()
         try:
             with Client(cfg) as ops:
                 existing = ops.list_records("TXT", relative)
-                logger.info("_create_record: found %d existing records: %s", len(existing), existing)
                 for record in existing:
                     ops.delete_record(identifier=record["id"])
                 ops.create_record("TXT", relative, value)
         except AuthenticationError as exc:
-            raise DnsAuthError(f"Auth failed for zone {domain!r}: {exc}") from exc
+            raise DnsAuthError(f"Auth failed for zone {self._config.domain!r}: {exc}") from exc
         except LexiconError as exc:
-            raise DnsRecordError(f"Failed to create TXT {name!r} in {domain!r}: {exc}") from exc
-        logger.debug("Created TXT %s -> %s (zone: %s)", name, value, domain)
+            raise DnsRecordError(f"Failed to create TXT {name!r} in {self._config.domain!r}: {exc}") from exc
+        logger.debug("Created TXT %s -> %s (zone: %s)", name, value, self._config.domain)
 
     def _delete_record(self, domain: str, name: str) -> None:
-        relative = self._relative_name(name, domain)
-        cfg = self._lexicon_config(domain)
+        relative = self._relative_name(name)
+        cfg = self._lexicon_config()
         try:
             with Client(cfg) as ops:
                 existing = ops.list_records("TXT", relative)
                 for record in existing:
                     ops.delete_record(identifier=record["id"])
         except AuthenticationError as exc:
-            raise DnsAuthError(f"Auth failed for zone {domain!r}: {exc}") from exc
+            raise DnsAuthError(f"Auth failed for zone {self._config.domain!r}: {exc}") from exc
         except LexiconError as exc:
-            raise DnsRecordError(f"Failed to delete TXT {name!r} in {domain!r}: {exc}") from exc
-        logger.debug("Deleted TXT %s (zone: %s)", name, domain)
+            raise DnsRecordError(f"Failed to delete TXT {name!r} in {self._config.domain!r}: {exc}") from exc
+        logger.debug("Deleted TXT %s (zone: %s)", name, self._config.domain)
 
     # -- public API -----------------------------------------------------------
 
