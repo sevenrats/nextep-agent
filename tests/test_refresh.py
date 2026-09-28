@@ -44,9 +44,16 @@ def _raw():
 class _FakeScheduler:
     def __init__(self):
         self.scheduled = []
+        self.daily = []
 
     def schedule_flow(self, job_id, run_at, func, *args):
         self.scheduled.append((job_id, run_at, args))
+
+    def schedule_flow_daily(self, job_id, slot, func, *args):
+        self.daily.append((job_id, slot, args))
+
+    def next_run_for(self, job_id):
+        return datetime(2030, 1, 1, tzinfo=timezone.utc)
 
 
 class _RecordingReporter:
@@ -161,3 +168,42 @@ def test_renew_one_targets_single_flow(monkeypatch, wired):
     assert len(reporter.events) == 1
     assert reporter.events[0]["flow_type"] == "external"
     assert sched.scheduled[0][0] == "renew:external:1"
+
+
+def test_slotted_flow_uses_daily_cron(monkeypatch, tmp_path):
+    # An external flow carrying a schedule_slot arms the daily cron path, not the
+    # one-shot date path.
+    raw = _raw()
+    raw["flows"] = [dict(raw["flows"][1], schedule_slot=42)]  # external only, slotted
+
+    slotted = AgentConfig.loads(json.dumps(raw))
+
+    class _CC:
+        def pull(self):
+            return slotted
+
+    monkeypatch.setattr(refresh_mod.RefreshService, "_config_client", lambda self: _CC())
+    reporter = _RecordingReporter()
+    monkeypatch.setattr(
+        refresh_mod.RefreshService, "_report_client", lambda self: reporter
+    )
+    monkeypatch.setattr(refresh_mod, "make_runner", _fake_make_runner())
+
+    sched = _FakeScheduler()
+    svc = refresh_mod.RefreshService(
+        spog_url="https://sh",
+        machine_cert_path="/m.pem",
+        machine_key_path="/m.key",
+        smallstep_root_path=None,
+        scheduler=sched,
+        config_path=str(tmp_path / "config.json"),
+    )
+    svc.refresh()
+
+    # armed via the daily path with the slot; NOT via the one-shot date path
+    assert sched.daily == [("renew:external:0", 42, (0,))]
+    assert sched.scheduled == []
+    # reported next_scheduled_run comes from next_run_for
+    assert reporter.events[0]["next_scheduled_run"] == datetime(
+        2030, 1, 1, tzinfo=timezone.utc
+    )

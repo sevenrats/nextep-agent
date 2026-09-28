@@ -12,6 +12,7 @@ from datetime import datetime
 from logging import getLogger
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 # Re-exported for callers that import from scheduler; the pure timing logic lives
 # in renewal_timing so it can be imported/tested without apscheduler present.
@@ -47,6 +48,24 @@ class RenewalScheduler:
             misfire_grace_time=3600,
         )
         logger.info("scheduled %s at %s", job_id, run_at.isoformat())
+
+    def schedule_flow_daily(self, job_id: str, slot: int, func, *args) -> None:
+        """Arm a recurring daily job at a fixed 10-minute slot (0..143, UTC).
+
+        Unlike the one-shot date trigger, a cron job recurs daily and does not
+        need re-arming after each run. Used for flows with a configured
+        ``schedule_slot`` (external/DNS flows always have one, to de-conflict the
+        shared ``_acme-challenge`` records)."""
+        hour, minute = divmod(slot * 10, 60)
+        self._sched.add_job(
+            func,
+            trigger=CronTrigger(hour=hour, minute=minute),
+            args=args,
+            id=job_id,
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+        logger.info("scheduled %s daily at %02d:%02d UTC", job_id, hour, minute)
 
     def next_run_for(self, job_id: str) -> datetime | None:
         job = self._sched.get_job(job_id)

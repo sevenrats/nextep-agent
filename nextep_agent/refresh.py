@@ -146,12 +146,21 @@ class RefreshService:
             return
 
         duration = int(time.monotonic() - started)
-        issued_at = datetime.now(timezone.utc)
-        next_run = compute_next_run(issued_at, result.not_after)
-        self.next_runs[job_id] = next_run
 
-        # (Re)arm the renewal job for this flow.
-        self._scheduler.schedule_flow(job_id, next_run, self.renew_one, index)
+        # (Re)arm the renewal job. A configured slot pins the flow to a fixed
+        # time of day (a daily cron job — external/DNS flows always carry one, to
+        # de-conflict their shared _acme-challenge records); otherwise renew on a
+        # fraction of the cert's remaining lifetime (a one-shot date job).
+        if flow.schedule_slot is not None:
+            self._scheduler.schedule_flow_daily(
+                job_id, flow.schedule_slot, self.renew_one, index
+            )
+            next_run = self._scheduler.next_run_for(job_id)
+        else:
+            issued_at = datetime.now(timezone.utc)
+            next_run = compute_next_run(issued_at, result.not_after)
+            self._scheduler.schedule_flow(job_id, next_run, self.renew_one, index)
+        self.next_runs[job_id] = next_run
 
         self._report_client().report(
             host=host,
@@ -166,5 +175,5 @@ class RefreshService:
             "flow %s ok — not_after=%s next_run=%s",
             flow.type,
             result.not_after.isoformat(),
-            next_run.isoformat(),
+            next_run.isoformat() if next_run else "n/a",
         )

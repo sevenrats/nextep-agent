@@ -72,6 +72,12 @@ def cmd_refresh(_args, org) -> int:
         def schedule_flow(self, *a, **k) -> None:  # noqa: D401
             pass
 
+        def schedule_flow_daily(self, *a, **k) -> None:  # noqa: D401
+            pass
+
+        def next_run_for(self, *a, **k):  # noqa: D401
+            return None
+
     svc = RefreshService(
         spog_url=settings.spog_url,
         machine_cert_path=settings.machine_cert_path,

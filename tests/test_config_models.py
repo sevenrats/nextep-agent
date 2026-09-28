@@ -111,6 +111,15 @@ def test_external_flow_two_level_discriminator():
     assert flow.post_renewal_script is None
 
 
+def test_schedule_slot_deserializes():
+    raw = _raw()
+    raw["flows"][1]["schedule_slot"] = 42
+    cfg = AgentConfig.loads(json.dumps(raw))
+    assert cfg.flows[1].schedule_slot == 42
+    # omitted -> None
+    assert cfg.flows[0].schedule_slot is None
+
+
 def test_google_provider_discriminator():
     raw = _raw()
     raw["flows"][1]["config"]["dns_provider"] = "googleclouddns"

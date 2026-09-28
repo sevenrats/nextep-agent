@@ -99,6 +99,10 @@ class FlowConfig:
     config: InternalX5cConfig | ExternalAcmeConfig
     #: Optional shell script run after this flow successfully (re)issues.
     post_renewal_script: str | None = None
+    #: Daily run time as a 10-minute slot index 0..143 (hour=slot//6,
+    #: minute=(slot%6)*10). When set, the flow's refresh runs at that time of day
+    #: instead of on a lifetime fraction. Required server-side for external flows.
+    schedule_slot: int | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -170,6 +174,7 @@ def _deserialize_flow(raw: dict) -> FlowConfig:
         key_output_path=raw["key_output_path"],
         config=body,
         post_renewal_script=raw.get("post_renewal_script"),
+        schedule_slot=raw.get("schedule_slot"),
     )
 
 
