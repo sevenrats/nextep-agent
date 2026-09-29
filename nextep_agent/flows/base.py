@@ -70,9 +70,28 @@ class FlowRunner(ABC):
         """Obtain the certificate. Return ``(cert_chain_pem, key_pem)``."""
         raise NotImplementedError
 
+    def _expected_sans(self) -> set[str]:
+        """SANs the issued cert must carry (to gate reissue). Overridden per flow:
+        internal returns the configured permitted SANs, external the ACME domains."""
+        raise NotImplementedError
+
     # -- orchestration --------------------------------------------------------
     def run(self) -> IssueResult:
-        """Obtain, persist, run post-renewal hook, and report metadata."""
+        """Issue only when needed, then persist + post-renewal hook + metadata.
+
+        Self-gates: an on-disk cert that exists, carries exactly the expected
+        SANs, and has more than the renewal threshold of days left is left
+        untouched (changed=False). This makes boot and every scheduled tick
+        idempotent — notably, external flows do NOT rewrite their _acme-challenge
+        DNS records off-slot on restart."""
+        current = self._up_to_date()
+        if current is not None:
+            return IssueResult(
+                flow_type=str(self.flow.type),
+                not_after=current.not_valid_after_utc,
+                sans=_sans_of(current),
+                changed=False,
+            )
         cert_pem, key_pem = self._obtain()
         changed = self._write(cert_pem, key_pem)
         leaf = _leaf_cert(cert_pem)
@@ -84,6 +103,42 @@ class FlowRunner(ABC):
             sans=_sans_of(leaf),
             changed=changed,
         )
+
+    # -- self-gating ----------------------------------------------------------
+    def _up_to_date(self) -> "x509.Certificate | None":
+        """Return the on-disk leaf cert iff it is adequate (skip issuance), else
+        None (must issue). Adequate = cert+key present, SANs exactly match the
+        configured set, and more than the renewal threshold of days remain."""
+        cert_out = self.flow.cert_output_path or self.defaults.cert_output_path
+        key_out = self.flow.key_output_path or self.defaults.key_output_path
+        if not cert_out:
+            return None
+        try:
+            cert_bytes = Path(cert_out).read_bytes()
+            if key_out and not Path(key_out).exists():
+                return None
+            leaf = x509.load_pem_x509_certificates(cert_bytes)[0]
+        except (FileNotFoundError, ValueError, IndexError):
+            return None
+
+        if set(_sans_of(leaf)) != self._expected_sans():
+            return None
+
+        threshold = self.flow.renew_before_days
+        if threshold is None:
+            lifetime_days = (leaf.not_valid_after_utc - leaf.not_valid_before_utc).days
+            threshold = min(30, lifetime_days // 3)
+        days_left = (leaf.not_valid_after_utc - utcnow()).days
+        if days_left <= threshold:
+            return None
+
+        self.logger.info(
+            "flow %s cert current — %d day(s) left (renew at <=%d); skipping issuance",
+            self.flow.type,
+            days_left,
+            threshold,
+        )
+        return leaf
 
     # -- helpers --------------------------------------------------------------
     def _write(self, cert_pem: str, key_pem: str | None) -> bool:

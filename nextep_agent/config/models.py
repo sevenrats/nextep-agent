@@ -63,9 +63,11 @@ class InternalX5cConfig:
     x5c_key_path: str = "/etc/ssl/private/machine.key"
     #: PEM bundle to verify step-ca's TLS. Empty -> use system trust.
     root_bundle_path: str = ""
-    #: Requested subject/hostname. SANs come from the server (enrichment); this
-    #: is the CSR CN / token subject.
+    #: Requested subject/hostname — the CSR CN / token subject.
     hostname: str = ""
+    #: Configured SANs the issued cert will carry (same source the enrichment
+    #: webhook uses). Used to gate reissue on the SAN set.
+    permitted_sans: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -103,6 +105,9 @@ class FlowConfig:
     #: minute=(slot%6)*10). When set, the flow's refresh runs at that time of day
     #: instead of on a lifetime fraction. Required server-side for external flows.
     schedule_slot: int | None = None
+    #: Renew when fewer than this many days remain. When None the agent defaults
+    #: to min(30, floor(cert_lifetime_days / 3)) from the on-disk cert.
+    renew_before_days: int | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -175,6 +180,7 @@ def _deserialize_flow(raw: dict) -> FlowConfig:
         config=body,
         post_renewal_script=raw.get("post_renewal_script"),
         schedule_slot=raw.get("schedule_slot"),
+        renew_before_days=raw.get("renew_before_days"),
     )
 
 

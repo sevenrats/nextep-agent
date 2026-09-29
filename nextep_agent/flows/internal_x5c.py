@@ -49,6 +49,9 @@ class InternalX5cRunner(FlowRunner):
         assert isinstance(cfg, InternalX5cConfig)
         return cfg
 
+    def _expected_sans(self) -> set[str]:
+        return set(self._cfg.permitted_sans)
+
     def _obtain(self) -> tuple[str, str]:
         cfg = self._cfg
         hostname = cfg.hostname

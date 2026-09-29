@@ -25,6 +25,9 @@ class ExternalAcmeRunner(FlowRunner):
         assert isinstance(cfg, ExternalAcmeConfig)
         return cfg
 
+    def _expected_sans(self) -> set[str]:
+        return set(self._cfg.domains)
+
     def _obtain(self) -> tuple[str, str]:
         cfg = self._cfg
         if cfg.dns_provider_config is None:

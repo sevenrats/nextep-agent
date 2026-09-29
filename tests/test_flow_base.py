@@ -24,19 +24,27 @@ class _FakeRunner(FlowRunner):
         super().__init__(flow)
         self._cert_pem = cert_pem
         self._key_pem = key_pem
+        self.obtain_calls = 0
+
+    def _expected_sans(self):
+        return set(self.flow.config.permitted_sans)
 
     def _obtain(self):
+        self.obtain_calls += 1
         return self._cert_pem, self._key_pem
 
 
-def _flow(tmp_path, script=None) -> FlowConfig:
+def _flow(tmp_path, script=None, sans=("svc.example.com",), renew_before_days=None) -> FlowConfig:
     return FlowConfig(
         type=FlowType.INTERNAL,
         method=FlowMethod.X5C,
         cert_output_path=str(tmp_path / "svc.pem"),
         key_output_path=str(tmp_path / "svc.key"),
-        config=InternalX5cConfig(hostname="svc.example.com"),
+        config=InternalX5cConfig(
+            hostname="svc.example.com", permitted_sans=list(sans)
+        ),
         post_renewal_script=script,
+        renew_before_days=renew_before_days,
     )
 
 
@@ -85,27 +93,77 @@ def test_run_writes_outputs_and_reports_metadata(tmp_path, self_signed):
     assert result.changed is True
 
 
-def test_run_reports_unchanged_on_identical_reissue(tmp_path, self_signed):
-    cert_pem, key_pem, _ = self_signed()
-    flow = _flow(tmp_path)
-    _FakeRunner(flow, cert_pem, key_pem).run()
-    second = _FakeRunner(flow, cert_pem, key_pem).run()
-    assert second.changed is False
+def test_second_run_is_gated_and_skips_obtain(tmp_path, self_signed):
+    # A current, SAN-matching cert with plenty of days left -> the gate skips
+    # issuance entirely (does not even call _obtain).
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"])
+    flow = _flow(tmp_path, sans=["svc.example.com"])
+    _FakeRunner(flow, cert_pem, key_pem).run()  # first issue
+    second = _FakeRunner(flow, cert_pem, key_pem)
+    result = second.run()
+    assert result.changed is False
+    assert second.obtain_calls == 0  # gate short-circuited before _obtain
 
 
 def test_post_renewal_script_runs_on_change(tmp_path, self_signed):
     marker = tmp_path / "ran"
-    cert_pem, key_pem, _ = self_signed()
-    flow = _flow(tmp_path, script=f"touch {marker}")
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"])
+    flow = _flow(tmp_path, script=f"touch {marker}", sans=["svc.example.com"])
     _FakeRunner(flow, cert_pem, key_pem).run()
     assert marker.exists()
 
 
-def test_post_renewal_script_skipped_when_unchanged(tmp_path, self_signed):
+def test_post_renewal_script_skipped_when_gated(tmp_path, self_signed):
     marker = tmp_path / "ran"
-    cert_pem, key_pem, _ = self_signed()
-    flow = _flow(tmp_path, script=f"touch {marker}")
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"])
+    flow = _flow(tmp_path, script=f"touch {marker}", sans=["svc.example.com"])
     _FakeRunner(flow, cert_pem, key_pem).run()  # first: changed -> runs
     marker.unlink()
-    _FakeRunner(flow, cert_pem, key_pem).run()  # second: unchanged -> skip
+    _FakeRunner(flow, cert_pem, key_pem).run()  # second: gated -> skip
     assert not marker.exists()
+
+
+# -- self-gating ------------------------------------------------------------ #
+def test_gate_issues_when_no_cert_on_disk(tmp_path, self_signed):
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"])
+    runner = _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem)
+    result = runner.run()
+    assert runner.obtain_calls == 1
+    assert result.changed is True
+
+
+def test_gate_reissues_on_san_mismatch(tmp_path, self_signed):
+    # On-disk cert has one SAN; config now wants an extra -> must reissue.
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"])
+    _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem).run()
+    new_cert, new_key, _ = self_signed(sans=["svc.example.com", "extra.example.com"])
+    runner = _FakeRunner(
+        _flow(tmp_path, sans=["svc.example.com", "extra.example.com"]),
+        new_cert,
+        new_key,
+    )
+    runner.run()
+    assert runner.obtain_calls == 1  # reissued because SANs changed
+
+
+def test_gate_reissues_when_near_expiry(tmp_path, self_signed):
+    # 10-day cert with default threshold min(30, 10//3=3)=3; 10 days left > 3 would
+    # skip, so force renew_before_days high enough to trip it.
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"], lifetime_days=10)
+    _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem).run()
+    runner = _FakeRunner(
+        _flow(tmp_path, sans=["svc.example.com"], renew_before_days=15),
+        cert_pem,
+        key_pem,
+    )
+    runner.run()
+    assert runner.obtain_calls == 1  # 10 days left <= 15 -> reissue
+
+
+def test_gate_default_threshold_skips_long_lived(tmp_path, self_signed):
+    # 90-day cert, no explicit threshold -> min(30, 30)=30; 90 left -> skip.
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"], lifetime_days=90)
+    _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem).run()
+    runner = _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem)
+    runner.run()
+    assert runner.obtain_calls == 0
