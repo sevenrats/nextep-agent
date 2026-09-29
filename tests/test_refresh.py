@@ -123,12 +123,11 @@ def test_refresh_runs_all_flows_persists_and_reports(monkeypatch, wired):
     assert (tmp_path / "config.json").exists()
     assert svc.config is result
 
-    # both flows scheduled with a stable job id and a future run time
-    assert len(sched.scheduled) == 2
-    ids = {job_id for job_id, _, _ in sched.scheduled}
+    # both flows armed on the daily-cron path with a stable job id + slot
+    assert len(sched.daily) == 2
+    ids = {job_id for job_id, _, _ in sched.daily}
     assert ids == {"renew:internal:0", "renew:external:1"}
-    for _job, run_at, _args in sched.scheduled:
-        assert run_at > datetime.now(timezone.utc)
+    assert sched.scheduled == []  # no one-shot date jobs anymore
 
     # both flows reported with a next_scheduled_run
     assert len(reporter.events) == 2
@@ -153,7 +152,7 @@ def test_per_flow_failure_is_isolated(monkeypatch, wired):
     svc.refresh()
 
     # the external flow still succeeded and got scheduled...
-    assert [j for j, _, _ in sched.scheduled] == ["renew:external:1"]
+    assert [j for j, _, _ in sched.daily] == ["renew:external:1"]
     # ...and the internal flow reported a failure rather than crashing the run
     statuses = {ev["flow_type"]: ev["status"] for ev in reporter.events}
     assert statuses["internal"] == "failed"
@@ -167,7 +166,7 @@ def test_renew_one_targets_single_flow(monkeypatch, wired):
     svc.renew_one(1)
     assert len(reporter.events) == 1
     assert reporter.events[0]["flow_type"] == "external"
-    assert sched.scheduled[0][0] == "renew:external:1"
+    assert sched.daily[0][0] == "renew:external:1"
 
 
 def test_slotted_flow_uses_daily_cron(monkeypatch, tmp_path):

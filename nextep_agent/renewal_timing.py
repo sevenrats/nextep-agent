@@ -13,6 +13,11 @@ from datetime import datetime, timedelta, timezone
 #: == renew at ~2/3 through the validity window.
 RENEW_AT_REMAINING_FRACTION = 1.0 / 3.0
 
+#: Default daily run slot (10-minute index, 0..143) when a flow has none — 03:00.
+#: The SPOG defaults it too; this is the agent-side fallback so a slot is never
+#: missing.
+DEFAULT_SLOT = 18
+
 
 def compute_next_run(issued_at: datetime, not_after: datetime) -> datetime:
     """When to renew, leaving RENEW_AT_REMAINING_FRACTION of the lifetime as margin.

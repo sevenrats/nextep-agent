@@ -9,7 +9,7 @@ failures are isolated so one bad flow does not sink the others.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from logging import getLogger
 from typing import TYPE_CHECKING
 
@@ -19,7 +19,7 @@ from nextep_agent.config.models import AgentConfig
 from nextep_agent.config.models import config_path as config_path_default
 from nextep_agent.flows import make_runner
 from nextep_agent.flows.base import BootstrapDefaults
-from nextep_agent.renewal_timing import compute_next_run
+from nextep_agent.renewal_timing import DEFAULT_SLOT
 
 if TYPE_CHECKING:
     # Type-only: importing the real scheduler drags apscheduler, which the CLI
@@ -147,19 +147,12 @@ class RefreshService:
 
         duration = int(time.monotonic() - started)
 
-        # (Re)arm the renewal job. A configured slot pins the flow to a fixed
-        # time of day (a daily cron job — external/DNS flows always carry one, to
-        # de-conflict their shared _acme-challenge records); otherwise renew on a
-        # fraction of the cert's remaining lifetime (a one-shot date job).
-        if flow.schedule_slot is not None:
-            self._scheduler.schedule_flow_daily(
-                job_id, flow.schedule_slot, self.renew_one, index
-            )
-            next_run = self._scheduler.next_run_for(job_id)
-        else:
-            issued_at = datetime.now(timezone.utc)
-            next_run = compute_next_run(issued_at, result.not_after)
-            self._scheduler.schedule_flow(job_id, next_run, self.renew_one, index)
+        # Every flow runs at a fixed daily slot. The SPOG always serves one
+        # (defaulting to 03:00 when unspecified); fall back to the same default
+        # here so a slot is never missing.
+        slot = flow.schedule_slot if flow.schedule_slot is not None else DEFAULT_SLOT
+        self._scheduler.schedule_flow_daily(job_id, slot, self.renew_one, index)
+        next_run = self._scheduler.next_run_for(job_id)
         self.next_runs[job_id] = next_run
 
         self._report_client().report(
