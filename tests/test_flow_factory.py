@@ -20,8 +20,9 @@ def test_internal_x5c_dispatch():
     flow = FlowConfig(
         type=FlowType.INTERNAL,
         method=FlowMethod.X5C,
-        cert_output_path="/c",
-        key_output_path="/k",
+        name="f",
+        cert_output_dir="/c",
+        key_output_dir="/k",
         config=InternalX5cConfig(provisioner="x5c", hostname="h"),
     )
     assert isinstance(make_runner(flow, None), InternalX5cRunner)
@@ -32,8 +33,9 @@ def test_external_dns01_dispatch_passes_org():
     flow = FlowConfig(
         type=FlowType.EXTERNAL,
         method=FlowMethod.DNS_01,
-        cert_output_path="/c",
-        key_output_path="/k",
+        name="f",
+        cert_output_dir="/c",
+        key_output_dir="/k",
         config=ExternalAcmeConfig(acme_provider=AcmeProvider.LETSENCRYPT),
     )
     runner = make_runner(flow, org)
@@ -46,8 +48,9 @@ def test_unbuilt_method_raises():
     flow = FlowConfig(
         type=FlowType.INTERNAL,
         method=FlowMethod.SCEP,
-        cert_output_path="/c",
-        key_output_path="/k",
+        name="f",
+        cert_output_dir="/c",
+        key_output_dir="/k",
         config=InternalX5cConfig(),
     )
     with pytest.raises(ValueError):

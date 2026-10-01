@@ -34,12 +34,15 @@ class _FakeRunner(FlowRunner):
         return self._cert_pem, self._key_pem
 
 
-def _flow(tmp_path, script=None, sans=("svc.example.com",), renew_before_days=None) -> FlowConfig:
+def _flow(tmp_path, script=None, sans=("svc.example.com",), renew_before_days=None,
+          name="svc") -> FlowConfig:
+    # cert/key land at <dir>/<name>.pem|.key -> tmp_path/svc.pem, tmp_path/svc.key
     return FlowConfig(
         type=FlowType.INTERNAL,
         method=FlowMethod.X5C,
-        cert_output_path=str(tmp_path / "svc.pem"),
-        key_output_path=str(tmp_path / "svc.key"),
+        name=name,
+        cert_output_dir=str(tmp_path),
+        key_output_dir=str(tmp_path),
         config=InternalX5cConfig(
             hostname="svc.example.com", permitted_sans=list(sans)
         ),

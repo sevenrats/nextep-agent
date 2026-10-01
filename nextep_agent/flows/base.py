@@ -48,9 +48,6 @@ class BootstrapDefaults:
     # Internal (x5c) flow constants used when the server serves them empty.
     ca_url: str = ""
     provisioner: str = ""
-    # Output paths used when the server serves the flow's paths empty.
-    cert_output_path: str = ""
-    key_output_path: str = ""
     # External (ACME) flow: contact email for account registration.
     acme_admin_email: str = ""
 
@@ -104,18 +101,25 @@ class FlowRunner(ABC):
             changed=changed,
         )
 
+    # -- output paths ---------------------------------------------------------
+    def _cert_path(self) -> Path:
+        """``<cert_output_dir>/<name>.pem`` — this flow's own cert file."""
+        return Path(self.flow.cert_output_dir) / f"{self.flow.name}.pem"
+
+    def _key_path(self) -> Path:
+        """``<key_output_dir>/<name>.key`` — this flow's own key file."""
+        return Path(self.flow.key_output_dir) / f"{self.flow.name}.key"
+
     # -- self-gating ----------------------------------------------------------
     def _up_to_date(self) -> "x509.Certificate | None":
         """Return the on-disk leaf cert iff it is adequate (skip issuance), else
         None (must issue). Adequate = cert+key present, SANs exactly match the
         configured set, and more than the renewal threshold of days remain."""
-        cert_out = self.flow.cert_output_path or self.defaults.cert_output_path
-        key_out = self.flow.key_output_path or self.defaults.key_output_path
-        if not cert_out:
-            return None
+        cert_out = self._cert_path()
+        key_out = self._key_path()
         try:
-            cert_bytes = Path(cert_out).read_bytes()
-            if key_out and not Path(key_out).exists():
+            cert_bytes = cert_out.read_bytes()
+            if not key_out.exists():
                 return None
             leaf = x509.load_pem_x509_certificates(cert_bytes)[0]
         except (FileNotFoundError, ValueError, IndexError):
@@ -142,18 +146,15 @@ class FlowRunner(ABC):
 
     # -- helpers --------------------------------------------------------------
     def _write(self, cert_pem: str, key_pem: str | None) -> bool:
-        """Write cert (and key, if given) to the flow's paths. Return whether
-        the cert content changed from what was already on disk."""
-        cert_out = self.flow.cert_output_path or self.defaults.cert_output_path
-        key_out = self.flow.key_output_path or self.defaults.key_output_path
-        if not cert_out or (key_pem is not None and not key_out):
-            raise RuntimeError(
-                "flow has no cert/key output path (set them on the flow or in "
-                "the org config)"
-            )
-        changed = _write_if_changed(Path(cert_out), cert_pem, mode=0o644)
+        """Write cert (and key, if given) to ``<dir>/<name>.{pem,key}``. Return
+        whether the cert content changed from what was already on disk."""
+        if not self.flow.name or not self.flow.cert_output_dir:
+            raise RuntimeError("flow is missing a name or cert output directory")
+        changed = _write_if_changed(self._cert_path(), cert_pem, mode=0o644)
         if key_pem is not None:
-            _write_if_changed(Path(key_out), key_pem, mode=0o600)
+            if not self.flow.key_output_dir:
+                raise RuntimeError("flow is missing a key output directory")
+            _write_if_changed(self._key_path(), key_pem, mode=0o600)
         return changed
 
     def _run_post_renewal(self) -> None:

@@ -22,14 +22,16 @@ def _raw():
         "flows": [
             {
                 "type": "internal",
-                "cert_output_path": "/c0",
-                "key_output_path": "/k0",
+                "name": "int0",
+                "cert_output_dir": "/c0",
+                "key_output_dir": "/k0",
                 "config": {"provisioner": "x5c", "hostname": "host"},
             },
             {
                 "type": "external",
-                "cert_output_path": "/c1",
-                "key_output_path": "/k1",
+                "name": "ext1",
+                "cert_output_dir": "/c1",
+                "key_output_dir": "/k1",
                 "config": {
                     "acme_provider": "letsencrypt",
                     "domains": ["host.example.com"],

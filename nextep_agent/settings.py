@@ -1,8 +1,9 @@
 """Agent bootstrap settings.
 
-Org-level constants (SPOG URL, CA + provisioner, trust bundle, machine credential
-and output paths) come from the :class:`AbstractOrganizationConfig` a consumer
-supplies — they are identical across every node and are never sourced from env.
+Org-level constants (SPOG URL, CA + provisioner, trust bundle, machine credential)
+come from the :class:`AbstractOrganizationConfig` a consumer supplies — they are
+identical across every node and are never sourced from env. Per-flow output dirs
+now come from the pulled AgentConfig, not the org.
 Only the genuinely per-deployment bits live in env: the nudge HMAC secret (a
 secret, must not be baked in) and the local listener bind. The pulled
 AgentConfig carries everything per-host/per-flow.
@@ -30,8 +31,6 @@ class Settings:
     bind_port: int
     ca_url: str
     provisioner: str
-    cert_output_path: str
-    key_output_path: str
     config_path: str
     acme_admin_email: str
 
@@ -51,8 +50,6 @@ class Settings:
             bind_port=int(os.environ.get("NEXTEP_BIND_PORT", DEFAULT_BIND_PORT)),
             ca_url=org.ca_url,
             provisioner=org.provisioner,
-            cert_output_path=org.cert_output_path,
-            key_output_path=org.key_output_path,
             config_path=org.config_path,
             acme_admin_email=org.acme_admin_email,
         )

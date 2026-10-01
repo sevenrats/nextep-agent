@@ -60,7 +60,8 @@ async def status(request: Request):
             flows.append(
                 {
                     "type": str(flow.type),
-                    "cert_output_path": flow.cert_output_path,
+                    "name": flow.name,
+                    "cert_output_dir": flow.cert_output_dir,
                     "next_scheduled_run": nxt.isoformat() if nxt else None,
                 }
             )

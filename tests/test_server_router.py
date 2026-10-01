@@ -120,8 +120,9 @@ def test_status_reports_flows_and_next_run():
                 "flows": [
                     {
                         "type": "internal",
-                        "cert_output_path": "/c0",
-                        "key_output_path": "/k0",
+                        "name": "flow0",
+                        "cert_output_dir": "/c0",
+                        "key_output_dir": "/k0",
                         "config": {"provisioner": "p", "hostname": "h"},
                     }
                 ],
@@ -140,5 +141,6 @@ def test_status_reports_flows_and_next_run():
     assert body["configured"] is True
     assert body["node_name"] == "host.example.com"
     assert body["flows"][0]["type"] == "internal"
-    assert body["flows"][0]["cert_output_path"] == "/c0"
+    assert body["flows"][0]["name"] == "flow0"
+    assert body["flows"][0]["cert_output_dir"] == "/c0"
     assert body["flows"][0]["next_scheduled_run"] == nxt.isoformat()

@@ -46,7 +46,10 @@ def cmd_status(_args, org) -> int:
     print(f"node: {cfg.node_name}")
     now = datetime.now(timezone.utc)
     for flow in cfg.flows:
-        na = _cert_not_after(flow.cert_output_path)
+        import os
+
+        cert_path = os.path.join(flow.cert_output_dir, f"{flow.name}.pem")
+        na = _cert_not_after(cert_path)
         if na is None:
             state = "no cert on disk"
             nxt = "-"
@@ -54,7 +57,7 @@ def cmd_status(_args, org) -> int:
             state = f"expires {na.isoformat()}"
             # Best-effort next-run estimate from the on-disk cert.
             nxt = compute_next_run(now, na).isoformat()
-        print(f"  [{flow.type}] {flow.cert_output_path}: {state} | next renewal ~ {nxt}")
+        print(f"  [{flow.type}] {flow.name} {cert_path}: {state} | next renewal ~ {nxt}")
     return 0
 
 
@@ -86,8 +89,6 @@ def cmd_refresh(_args, org) -> int:
         scheduler=_NoopScheduler(),
         ca_url=settings.ca_url,
         provisioner=settings.provisioner,
-        cert_output_path=settings.cert_output_path,
-        key_output_path=settings.key_output_path,
         config_path=settings.config_path,
         acme_admin_email=settings.acme_admin_email,
     )

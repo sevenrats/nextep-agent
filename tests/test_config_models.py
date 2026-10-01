@@ -26,8 +26,9 @@ def _raw():
         "flows": [
             {
                 "type": "internal",
-                "cert_output_path": "/etc/ssl/certs/svc.pem",
-                "key_output_path": "/etc/ssl/private/svc.key",
+                "name": "svcflow",
+                "cert_output_dir": "/etc/ssl/certs",
+                "key_output_dir": "/etc/ssl/private",
                 "post_renewal_script": "systemctl reload nginx",
                 "config": {
                     "ca_url": "https://ca.example.com:444",
@@ -37,8 +38,9 @@ def _raw():
             },
             {
                 "type": "external",
-                "cert_output_path": "/etc/ssl/certs/ext.pem",
-                "key_output_path": "/etc/ssl/private/ext.key",
+                "name": "extflow",
+                "cert_output_dir": "/etc/ssl/certs",
+                "key_output_dir": "/etc/ssl/private",
                 "config": {
                     "acme_provider": "letsencrypt",
                     "domains": ["ex.example.com", "*.ex.example.com"],

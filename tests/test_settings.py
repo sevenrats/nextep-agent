@@ -16,8 +16,6 @@ class _FakeOrg(AbstractOrganizationConfig):
     smallstep_root_path = ""  # set per-test
     machine_cert_path = "/org/machine.pem"
     machine_key_path = "/org/machine.key"
-    cert_output_path = "/org/service.pem"
-    key_output_path = "/org/service.key"
     config_path = "/org/config.json"
     acme_admin_email = "certs@example.com"
 
@@ -36,8 +34,6 @@ def test_org_values_sourced_from_org_config(monkeypatch):
     assert s.provisioner == "example-x5c"
     assert s.machine_cert_path == "/org/machine.pem"
     assert s.machine_key_path == "/org/machine.key"
-    assert s.cert_output_path == "/org/service.pem"
-    assert s.key_output_path == "/org/service.key"
 
 
 def test_deployment_values_from_env(monkeypatch):

@@ -59,15 +59,5 @@ class AbstractOrganizationConfig(ABC):
 
     @property
     @abstractmethod
-    def cert_output_path(self) -> str:
-        """Fallback service-cert output path when a flow serves none."""
-
-    @property
-    @abstractmethod
-    def key_output_path(self) -> str:
-        """Fallback service-key output path when a flow serves none."""
-
-    @property
-    @abstractmethod
     def acme_admin_email(self) -> str:
         """Contact email for the external (ACME) flow's account registration."""

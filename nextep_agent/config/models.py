@@ -95,9 +95,12 @@ class FlowConfig:
 
     type: FlowType
     method: FlowMethod
-    #: Where the issued service cert / key are written (per-flow, configurable).
-    cert_output_path: str
-    key_output_path: str
+    #: Per-host-unique flow name. The issued cert/key are written to
+    #: ``<cert_output_dir>/<name>.pem`` and ``<key_output_dir>/<name>.key`` so
+    #: multiple flows on one host never clobber each other.
+    name: str
+    cert_output_dir: str
+    key_output_dir: str
     config: InternalX5cConfig | ExternalAcmeConfig
     #: Optional shell script run after this flow successfully (re)issues.
     post_renewal_script: str | None = None
@@ -175,8 +178,9 @@ def _deserialize_flow(raw: dict) -> FlowConfig:
     return FlowConfig(
         type=flow_type,
         method=method,
-        cert_output_path=raw["cert_output_path"],
-        key_output_path=raw["key_output_path"],
+        name=raw["name"],
+        cert_output_dir=raw["cert_output_dir"],
+        key_output_dir=raw["key_output_dir"],
         config=body,
         post_renewal_script=raw.get("post_renewal_script"),
         schedule_slot=raw.get("schedule_slot"),
