@@ -13,7 +13,7 @@ class _FakeOrg(AbstractOrganizationConfig):
     spog_url = "https://sh.example.edu"
     ca_url = "https://ca.example.edu:444"
     provisioner = "example-x5c"
-    smallstep_root_path = ""  # set per-test
+    smallstep_root_pem = "-----BEGIN CERTIFICATE-----\nFAKE\n-----END CERTIFICATE-----\n"
     machine_cert_path = "/org/machine.pem"
     machine_key_path = "/org/machine.key"
     config_path = "/org/config.json"
@@ -34,6 +34,7 @@ def test_org_values_sourced_from_org_config(monkeypatch):
     assert s.provisioner == "example-x5c"
     assert s.machine_cert_path == "/org/machine.pem"
     assert s.machine_key_path == "/org/machine.key"
+    assert "BEGIN CERTIFICATE" in s.smallstep_root_pem
 
 
 def test_deployment_values_from_env(monkeypatch):
@@ -47,20 +48,3 @@ def test_deployment_values_from_env(monkeypatch):
     s = Settings.from_env(_FakeOrg())
     assert s.nudge_secret == b"sekret"
     assert s.bind_port == 8443
-
-
-def test_smallstep_root_only_used_when_file_exists(monkeypatch, tmp_path):
-    _clear_nextep_env(monkeypatch)
-
-    class _Missing(_FakeOrg):
-        smallstep_root_path = str(tmp_path / "nope.pem")
-
-    assert Settings.from_env(_Missing()).smallstep_root_path is None
-
-    root = tmp_path / "ca.pem"
-    root.write_text("---PEM---")
-
-    class _Present(_FakeOrg):
-        smallstep_root_path = str(root)
-
-    assert Settings.from_env(_Present()).smallstep_root_path == str(root)

@@ -90,7 +90,7 @@ def test_config_client_pull_success(monkeypatch, creds):
         spog_url="https://sh.example.com",
         client_cert_path=cert,
         client_key_path=key,
-        smallstep_root_path=None,
+        ca_pem=None,
     )
     cfg = client.pull()
     assert cfg.node_name == "host.example.com"

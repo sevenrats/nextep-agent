@@ -42,7 +42,7 @@ class BootstrapDefaults:
     later feature; for now the human ensures these are present/flagged.)
     """
 
-    smallstep_root_path: str | None = None
+    smallstep_root_pem: str = ""
     machine_cert_path: str = ""
     machine_key_path: str = ""
     # Internal (x5c) flow constants used when the server serves them empty.

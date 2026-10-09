@@ -85,7 +85,7 @@ def cmd_refresh(_args, org) -> int:
         spog_url=settings.spog_url,
         machine_cert_path=settings.machine_cert_path,
         machine_key_path=settings.machine_key_path,
-        smallstep_root_path=settings.smallstep_root_path,
+        smallstep_root_pem=settings.smallstep_root_pem,
         scheduler=_NoopScheduler(),
         ca_url=settings.ca_url,
         provisioner=settings.provisioner,

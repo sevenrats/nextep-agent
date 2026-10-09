@@ -38,7 +38,7 @@ class RefreshService:
         spog_url: str,
         machine_cert_path: str,
         machine_key_path: str,
-        smallstep_root_path: str | None,
+        smallstep_root_pem: str = "",
         scheduler: RenewalScheduler,
         ca_url: str = "",
         provisioner: str = "",
@@ -49,7 +49,7 @@ class RefreshService:
         self._spog_url = spog_url
         self._cert = machine_cert_path
         self._key = machine_key_path
-        self._root = smallstep_root_path
+        self._root_pem = smallstep_root_pem
         self._ca_url = ca_url
         self._provisioner = provisioner
         self._config_path = config_path or config_path_default()
@@ -68,7 +68,7 @@ class RefreshService:
             spog_url=self._spog_url,
             client_cert_path=self._cert,
             client_key_path=self._key,
-            smallstep_root_path=self._root,
+            ca_pem=self._root_pem,
         )
 
     def _report_client(self) -> ReportClient:
@@ -76,14 +76,14 @@ class RefreshService:
             spog_url=self._spog_url,
             client_cert_path=self._cert,
             client_key_path=self._key,
-            smallstep_root_path=self._root,
+            ca_pem=self._root_pem,
         )
 
     def _bootstrap_defaults(self) -> BootstrapDefaults:
-        """Agent-local fallbacks for flows: the smallstep root (same one used for
-        the config-pull mTLS verify) + the OS-fixed machine cert/key paths."""
+        """Agent-local fallbacks for flows: the smallstep root PEM (same trust used
+        for the config-pull mTLS verify) + the OS-fixed machine cert/key paths."""
         return BootstrapDefaults(
-            smallstep_root_path=self._root,
+            smallstep_root_pem=self._root_pem,
             machine_cert_path=self._cert,
             machine_key_path=self._key,
             ca_url=self._ca_url,

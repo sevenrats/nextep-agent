@@ -37,9 +37,11 @@ class AbstractOrganizationConfig(ABC):
 
     @property
     @abstractmethod
-    def smallstep_root_path(self) -> str:
-        """PEM bundle verifying smallhelp's TLS (config pull) and step-ca's TLS
-        (x5c sign). httpx does not use the OS trust store, so this is required."""
+    def smallstep_root_pem(self) -> str:
+        """The smallstep root cert as a PEM string. Verifies smallhelp's TLS
+        (config pull/report) and step-ca's TLS (x5c sign). Baked into the org so
+        no trust file need be provisioned per host; httpx does not use the OS
+        trust store, so this is required for those private-CA surfaces."""
 
     @property
     @abstractmethod

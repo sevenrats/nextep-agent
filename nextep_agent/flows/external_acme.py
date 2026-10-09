@@ -46,7 +46,9 @@ class ExternalAcmeRunner(FlowRunner):
                     "internal-acme requires org.acme_directory_url"
                 )
             directory_url = self.org.acme_directory_url
-            ca_bundle = self.org.smallstep_root_pem or None
+            # Internal ACME is a private (smallstep) CA — verify its TLS against
+            # the baked-in root PEM, same trust as the mTLS/x5c surfaces.
+            ca_bundle = self.defaults.smallstep_root_pem or None
         elif cfg.acme_provider is AcmeProvider.LETSENCRYPT_STAGING:
             directory_url = LETSENCRYPT_STAGING_URL
             ca_bundle = None

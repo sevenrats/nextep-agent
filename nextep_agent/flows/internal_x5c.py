@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import ssl
 import uuid
 
 import httpx
@@ -119,17 +120,22 @@ class InternalX5cRunner(FlowRunner):
         )
 
         # 5. POST to step-ca; verify its TLS against the smallstep root. This is
-        # the SAME smallstep root the agent uses for the mTLS config pull,
-        # threaded in via the org config. httpx does NOT use the OS trust
-        # store, so verify=True (certifi) would reject step-ca's private cert —
-        # a real root bundle path is required.
-        root_bundle = cfg.root_bundle_path or self.defaults.smallstep_root_path
-        if not root_bundle:
-            raise RuntimeError(
-                "no smallstep root bundle for step-ca TLS verify — set it in the "
-                "org config (httpx does not use the OS trust store)"
+        # the SAME trust the agent uses for the mTLS config pull, baked into the
+        # org config as PEM. httpx does NOT use the OS trust store, so verify=True
+        # (certifi) would reject step-ca's private cert — build an SSLContext from
+        # the root. The wire config may still carry a root_bundle_path (a file).
+        if cfg.root_bundle_path:
+            verify_ctx = ssl.create_default_context(cafile=cfg.root_bundle_path)
+        elif self.defaults.smallstep_root_pem:
+            verify_ctx = ssl.create_default_context(
+                cadata=self.defaults.smallstep_root_pem
             )
-        with httpx.Client(verify=root_bundle, timeout=10.0) as client:
+        else:
+            raise RuntimeError(
+                "no smallstep root for step-ca TLS verify — set smallstep_root_pem "
+                "in the org config (httpx does not use the OS trust store)"
+            )
+        with httpx.Client(verify=verify_ctx, timeout=10.0) as client:
             resp = client.post(post_url, json={"csr": csr_pem, "ott": token})
         if resp.status_code not in (200, 201):
             raise RuntimeError(

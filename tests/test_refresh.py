@@ -88,7 +88,7 @@ def wired(monkeypatch, tmp_path):
         spog_url="https://sh",
         machine_cert_path="/m.pem",
         machine_key_path="/m.key",
-        smallstep_root_path=None,
+        smallstep_root_pem="",
         scheduler=sched,
         config_path=str(tmp_path / "config.json"),  # persist to a temp path
     )
@@ -195,7 +195,7 @@ def test_slotted_flow_uses_daily_cron(monkeypatch, tmp_path):
         spog_url="https://sh",
         machine_cert_path="/m.pem",
         machine_key_path="/m.key",
-        smallstep_root_path=None,
+        smallstep_root_pem="",
         scheduler=sched,
         config_path=str(tmp_path / "config.json"),
     )

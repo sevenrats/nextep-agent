@@ -22,17 +22,18 @@ def _require(path: str, purpose: str) -> str:
 def build_mtls_context(
     client_cert_path: str,
     client_key_path: str,
-    ca_path: str | None = None,
+    ca_pem: str | None = None,
 ) -> ssl.SSLContext:
     """Client SSLContext that presents the machine cert and verifies the server.
 
-    ``ca_path`` is the smallstep root that verifies smallhelp's server cert;
-    httpx does not use the OS trust store, so it must be supplied for a private
-    CA. If omitted, the system default trust is used.
+    ``ca_pem`` is the smallstep root (PEM content, baked into the org config) that
+    verifies smallhelp's server cert; httpx does not use the OS trust store, so it
+    must be supplied for a private CA. If omitted, the system default trust is
+    used. The machine cert/key are still read from their (certmonger-rotated)
+    files.
     """
-    if ca_path:
-        _require(ca_path, "smallstep root bundle (verifies smallhelp's TLS)")
-        ctx = ssl.create_default_context(cafile=ca_path)
+    if ca_pem:
+        ctx = ssl.create_default_context(cadata=ca_pem)
     else:
         ctx = ssl.create_default_context()
     _require(client_cert_path, "machine cert (mTLS client credential)")

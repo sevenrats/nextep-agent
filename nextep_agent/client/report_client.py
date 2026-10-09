@@ -22,14 +22,12 @@ class ReportClient:
         spog_url: str,
         client_cert_path: str,
         client_key_path: str,
-        smallstep_root_path: str | None = None,
+        ca_pem: str | None = None,
         timeout: float = 15.0,
     ) -> None:
         self.logger = getLogger("report")
         self._url = f"{spog_url.rstrip('/')}/agent/report"
-        self._ctx = build_mtls_context(
-            client_cert_path, client_key_path, smallstep_root_path
-        )
+        self._ctx = build_mtls_context(client_cert_path, client_key_path, ca_pem)
         self._timeout = timeout
 
     def report(
