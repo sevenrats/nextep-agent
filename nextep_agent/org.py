@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from nextep_agent import platform_paths
+
 
 class AbstractOrganizationConfig(ABC):
     """The org-level constants every node of an organization shares."""
@@ -44,14 +46,20 @@ class AbstractOrganizationConfig(ABC):
         trust store, so this is required for those private-CA surfaces."""
 
     @property
-    @abstractmethod
     def machine_cert_path(self) -> str:
-        """AD machine cert certmonger keeps fresh — the mTLS + x5c credential."""
+        """AD machine cert certmonger keeps fresh — the mTLS + x5c credential.
+
+        Defaults to the conventional certmonger output path for the node's OS
+        family (Debian /etc/ssl, RHEL/OL /etc/pki/tls), detected at runtime so the
+        agent reads whatever realmd/certmonger wrote without per-host config. A
+        fork may override to force a non-standard location."""
+        return platform_paths.machine_cert_path()
 
     @property
-    @abstractmethod
     def machine_key_path(self) -> str:
-        """Key for :attr:`machine_cert_path`."""
+        """Key for :attr:`machine_cert_path`. OS-detected like it; override to
+        force a non-standard location."""
+        return platform_paths.machine_key_path()
 
     @property
     @abstractmethod

@@ -68,10 +68,11 @@ class InternalX5cRunner(FlowRunner):
             )
 
         # 1. Load the x5c credential (the AD machine cert/key) — the SAME
-        # credential used for the mTLS config pull, supplied by the org config.
-        # Fall back to the flow config's paths.
-        cert_path = self.defaults.machine_cert_path or cfg.x5c_cert_path
-        key_path = self.defaults.machine_key_path or cfg.x5c_key_path
+        # credential used for the mTLS config pull. The agent-side default is the
+        # OS-detected certmonger output path (BootstrapDefaults, from the org
+        # config); a per-flow x5c_cert_path/x5c_key_path, when set, overrides it.
+        cert_path = cfg.x5c_cert_path or self.defaults.machine_cert_path
+        key_path = cfg.x5c_key_path or self.defaults.machine_key_path
         with open(cert_path, "rb") as f:
             chain = x509.load_pem_x509_certificates(f.read())  # leaf first
         with open(key_path, "rb") as f:

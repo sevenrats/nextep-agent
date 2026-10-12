@@ -95,8 +95,11 @@ def test_internal_flow_discriminator():
     assert isinstance(flow.config, InternalX5cConfig)
     assert flow.config.provisioner == "x5c"
     assert flow.post_renewal_script == "systemctl reload nginx"
-    # defaults fill in when omitted
-    assert flow.config.x5c_cert_path == "/etc/ssl/certs/machine.pem"
+    # x5c_cert_path/x5c_key_path default to EMPTY: when omitted the agent uses the
+    # OS-detected certmonger output path (resolved at the org/runner layer, not the
+    # DTO). A non-empty value is only a per-flow override.
+    assert flow.config.x5c_cert_path == ""
+    assert flow.config.x5c_key_path == ""
 
 
 def test_external_flow_two_level_discriminator():

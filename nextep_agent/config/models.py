@@ -57,10 +57,12 @@ class InternalX5cConfig:
 
     ca_url: str = ""
     provisioner: str = ""
-    #: The AD machine cert + key certmonger keeps fresh; presented as the x5c
-    #: credential. Defaults match the certmonger enrollment output paths.
-    x5c_cert_path: str = "/etc/ssl/certs/machine.pem"
-    x5c_key_path: str = "/etc/ssl/private/machine.key"
+    #: Optional override of the AD machine cert + key (the x5c credential). Left
+    #: EMPTY by default so the agent uses the OS-detected certmonger output path
+    #: (see AbstractOrganizationConfig.machine_cert_path / BootstrapDefaults).
+    #: Set non-empty only to force a non-standard per-flow credential location.
+    x5c_cert_path: str = ""
+    x5c_key_path: str = ""
     #: PEM bundle to verify step-ca's TLS. Empty -> use system trust.
     root_bundle_path: str = ""
     #: Requested subject/hostname — the CSR CN / token subject.
