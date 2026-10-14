@@ -25,6 +25,7 @@ class IssueResult:
     """Outcome of a single flow issuance, reported upstream and to the scheduler."""
 
     flow_type: str
+    not_before: datetime
     not_after: datetime
     sans: list[str]
     changed: bool
@@ -85,6 +86,7 @@ class FlowRunner(ABC):
         if current is not None:
             return IssueResult(
                 flow_type=str(self.flow.type),
+                not_before=current.not_valid_before_utc,
                 not_after=current.not_valid_after_utc,
                 sans=_sans_of(current),
                 changed=False,
@@ -96,6 +98,7 @@ class FlowRunner(ABC):
             self._run_post_renewal()
         return IssueResult(
             flow_type=str(self.flow.type),
+            not_before=leaf.not_valid_before_utc,
             not_after=leaf.not_valid_after_utc,
             sans=_sans_of(leaf),
             changed=changed,

@@ -97,6 +97,7 @@ def wired(monkeypatch, tmp_path):
 
 def _fake_make_runner(not_after=None, changed=True, fail_types=()):
     na = not_after or (datetime.now(timezone.utc) + timedelta(days=90))
+    nb = na - timedelta(days=90)
 
     def factory(flow, org, defaults=None):
         class _R:
@@ -105,6 +106,7 @@ def _fake_make_runner(not_after=None, changed=True, fail_types=()):
                     raise RuntimeError("boom")
                 return IssueResult(
                     flow_type=str(flow.type),
+                    not_before=nb,
                     not_after=na,
                     sans=[flow.config.__dict__.get("hostname", "x")],
                     changed=changed,

@@ -8,7 +8,6 @@ failures are isolated so one bad flow does not sink the others.
 
 from __future__ import annotations
 
-import time
 from datetime import datetime
 from logging import getLogger
 from typing import TYPE_CHECKING
@@ -125,7 +124,6 @@ class RefreshService:
     def _run_one_flow(self, cfg: AgentConfig, index: int, flow) -> None:
         host = cfg.node_name
         job_id = _flow_job_id(str(flow.type), index)
-        started = time.monotonic()
         try:
             runner = make_runner(flow, cfg.org, self._bootstrap_defaults())
             result = runner.run()
@@ -139,8 +137,6 @@ class RefreshService:
             )
             return
 
-        duration = int(time.monotonic() - started)
-
         # Every flow runs at a fixed daily slot. The SPOG always serves one
         # (defaulting to 03:00 when unspecified); fall back to the same default
         # here so a slot is never missing.
@@ -149,14 +145,17 @@ class RefreshService:
         next_run = self._scheduler.next_run_for(job_id)
         self.next_runs[job_id] = next_run
 
+        # Report the cert's validity window; smallhelp derives the lifetime-days
+        # column from not_before/not_after. (We no longer send the issuance elapsed
+        # time as "duration" — that was being stored and shown as the cert lifetime.)
         self._report_client().report(
             host=host,
             flow_type=str(flow.type),
             status="renewed" if result.changed else "issued",
+            not_before=result.not_before,
             not_after=result.not_after,
             next_scheduled_run=next_run,
             provider=str(flow.type),
-            duration=duration,
         )
         self.logger.info(
             "flow %s ok — not_after=%s next_run=%s",

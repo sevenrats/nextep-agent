@@ -141,6 +141,7 @@ def test_report_client_posts_payload(monkeypatch, creds):
         return httpx.Response(200, json={"ok": True})
 
     _patch_httpx(monkeypatch, mod, handler)
+    nb = datetime(2026, 9, 17, tzinfo=timezone.utc)
     na = datetime(2026, 12, 16, tzinfo=timezone.utc)
     nxt = datetime(2026, 10, 16, tzinfo=timezone.utc)
     ReportClient(
@@ -151,16 +152,18 @@ def test_report_client_posts_payload(monkeypatch, creds):
         host="host.example.com",
         flow_type="internal",
         status="renewed",
+        not_before=nb,
         not_after=na,
         next_scheduled_run=nxt,
         provider="internal",
-        duration=3,
     )
     assert seen["host"] == "host.example.com"
     assert seen["status"] == "renewed"
+    assert seen["not_before"] == nb.isoformat()
     assert seen["not_after"] == na.isoformat()
     assert seen["next_scheduled_run"] == nxt.isoformat()
-    assert seen["duration"] == 3
+    # duration is no longer sent by the client; smallhelp derives it from the dates.
+    assert "duration" not in seen
 
 
 def test_report_client_swallows_errors(monkeypatch, creds):

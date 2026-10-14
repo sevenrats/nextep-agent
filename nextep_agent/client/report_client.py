@@ -36,22 +36,28 @@ class ReportClient:
         host: str,
         flow_type: str,
         status: str,
+        not_before: datetime | None = None,
         not_after: datetime | None = None,
         next_scheduled_run: datetime | None = None,
         provider: str | None = None,
-        duration: int | None = None,
         error: str | None = None,
     ) -> None:
+        # Report the issued cert's validity window (not_before/not_after); smallhelp
+        # derives the "duration (days)" column from these. We deliberately do NOT
+        # send a precomputed duration: it previously carried the issuance ELAPSED
+        # time (a stopwatch), which the server stored as the cert lifetime and
+        # displayed as "0 days". Duration is a property of the cert, computed once,
+        # server-side, from its own dates.
         payload = {
             "host": host,
             "flow_type": flow_type,
             "status": status,  # issued | renewed | failed
+            "not_before": not_before.isoformat() if not_before else None,
             "not_after": not_after.isoformat() if not_after else None,
             "next_scheduled_run": (
                 next_scheduled_run.isoformat() if next_scheduled_run else None
             ),
             "provider": provider,
-            "duration": duration,
             "error": error,
         }
         try:
