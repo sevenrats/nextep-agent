@@ -170,3 +170,53 @@ def test_gate_default_threshold_skips_long_lived(tmp_path, self_signed):
     runner = _FakeRunner(_flow(tmp_path, sans=["svc.example.com"]), cert_pem, key_pem)
     runner.run()
     assert runner.obtain_calls == 0
+
+
+# -- output-dir resolution (OS default when the pulled config leaves it blank) --
+def test_explicit_output_dirs_used_verbatim(tmp_path, self_signed):
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"], lifetime_days=90)
+    # _flow() sets cert/key_output_dir=tmp_path explicitly; writes land there.
+    _FakeRunner(_flow(tmp_path), cert_pem, key_pem).run()
+    assert (tmp_path / "svc.pem").exists()
+    assert (tmp_path / "svc.key").exists()
+
+
+def test_blank_output_dirs_resolve_to_os_default(tmp_path, self_signed, monkeypatch):
+    # When the pulled config leaves the output dirs blank, the runner falls back
+    # to platform_paths' OS-conventional dirs (resolved agent-side, not served).
+    from nextep_agent import platform_paths
+
+    cert_dir = tmp_path / "pki" / "certs"
+    key_dir = tmp_path / "pki" / "private"
+    monkeypatch.setattr(platform_paths, "cert_output_dir", lambda *a, **k: str(cert_dir))
+    monkeypatch.setattr(platform_paths, "key_output_dir", lambda *a, **k: str(key_dir))
+
+    flow = _flow(tmp_path)
+    flow.cert_output_dir = ""
+    flow.key_output_dir = ""
+    cert_pem, key_pem, _ = self_signed(sans=["svc.example.com"], lifetime_days=90)
+    _FakeRunner(flow, cert_pem, key_pem).run()
+
+    assert (cert_dir / "svc.pem").exists()
+    assert (key_dir / "svc.key").exists()
+
+
+def test_platform_paths_dirs_by_family(tmp_path):
+    from nextep_agent import platform_paths as pp
+
+    def _osrel(text):
+        p = tmp_path / "os-release"
+        p.write_text(text)
+        return str(p)
+
+    rhel = _osrel('ID="ol"\nID_LIKE="fedora"\n')
+    assert pp.cert_output_dir(rhel) == "/etc/pki/tls/certs"
+    assert pp.key_output_dir(rhel) == "/etc/pki/tls/private"
+    assert pp.machine_cert_path(rhel) == "/etc/pki/tls/certs/machine.pem"
+
+    deb = _osrel("ID=ubuntu\nID_LIKE=debian\n")
+    assert pp.cert_output_dir(deb) == "/etc/ssl/certs"
+    assert pp.key_output_dir(deb) == "/etc/ssl/private"
+
+    unknown = _osrel("ID=arch\n")
+    assert pp.cert_output_dir(unknown) == "/etc/ssl/certs"  # Debian fallback

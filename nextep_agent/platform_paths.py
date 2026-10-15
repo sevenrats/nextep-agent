@@ -1,27 +1,32 @@
-"""OS-family detection for the machine credential paths certmonger writes.
+"""OS-family detection for the conventional TLS cert/key directories.
 
-The AD machine cert/key (certmonger's enrollment output, presented as the x5c /
-mTLS credential) lands at a conventional location that differs by OS family:
+TLS material lives under a different tree by OS family:
 
-  * Debian/Ubuntu : /etc/ssl/certs/machine.pem   + /etc/ssl/private/machine.key
-  * RHEL/OL/Fedora: /etc/pki/tls/certs/machine.pem + /etc/pki/tls/private/machine.key
+  * Debian/Ubuntu : /etc/ssl/certs       + /etc/ssl/private
+  * RHEL/OL/Fedora: /etc/pki/tls/certs   + /etc/pki/tls/private
 
-These mirror the paths the companion enroll-machine-cert.sh writes per OS, so the
-agent reads whatever realmd/certmonger put down without any per-host config. The
-family is read from /etc/os-release ID/ID_LIKE (same signal the enroll script
-uses); anything unrecognised falls back to the Debian layout, which is the widest
-convention and matches the project's original default.
+The agent is the only component that knows the node's OS (the SPOG serves many
+hosts and cannot), so OS-dependent paths are resolved here, not server-side:
+
+  * the AD machine cert/key certmonger writes (the x5c / mTLS credential the agent
+    READS), via machine_cert_path/machine_key_path; and
+  * the per-flow output directory an issued cert is WRITTEN to when the pulled
+    config leaves it blank, via cert_output_dir/key_output_dir.
+
+Family is read from /etc/os-release ID/ID_LIKE (the same signal the companion
+enroll-machine-cert.sh keys on); anything unrecognised falls back to the Debian
+layout, the widest convention and the project's original default.
 """
 
 from __future__ import annotations
 
 import platform
 
-# Conventional certmonger machine-cert output paths, by OS family.
-_DEBIAN_CERT = "/etc/ssl/certs/machine.pem"
-_DEBIAN_KEY = "/etc/ssl/private/machine.key"
-_RHEL_CERT = "/etc/pki/tls/certs/machine.pem"
-_RHEL_KEY = "/etc/pki/tls/private/machine.key"
+# Conventional TLS directories, by OS family.
+_DEBIAN_CERT_DIR = "/etc/ssl/certs"
+_DEBIAN_KEY_DIR = "/etc/ssl/private"
+_RHEL_CERT_DIR = "/etc/pki/tls/certs"
+_RHEL_KEY_DIR = "/etc/pki/tls/private"
 
 
 def _os_family(os_release_path: str = "/etc/os-release") -> str:
@@ -49,11 +54,21 @@ def _os_family(os_release_path: str = "/etc/os-release") -> str:
     return ""
 
 
+def cert_output_dir(os_release_path: str = "/etc/os-release") -> str:
+    """Conventional cert directory for this OS (Debian layout if unknown)."""
+    return _RHEL_CERT_DIR if _os_family(os_release_path) == "rhel" else _DEBIAN_CERT_DIR
+
+
+def key_output_dir(os_release_path: str = "/etc/os-release") -> str:
+    """Conventional private-key directory for this OS (Debian layout if unknown)."""
+    return _RHEL_KEY_DIR if _os_family(os_release_path) == "rhel" else _DEBIAN_KEY_DIR
+
+
 def machine_cert_path(os_release_path: str = "/etc/os-release") -> str:
     """Conventional machine cert path for this OS (Debian layout if unknown)."""
-    return _RHEL_CERT if _os_family(os_release_path) == "rhel" else _DEBIAN_CERT
+    return f"{cert_output_dir(os_release_path)}/machine.pem"
 
 
 def machine_key_path(os_release_path: str = "/etc/os-release") -> str:
     """Conventional machine key path for this OS (Debian layout if unknown)."""
-    return _RHEL_KEY if _os_family(os_release_path) == "rhel" else _DEBIAN_KEY
+    return f"{key_output_dir(os_release_path)}/machine.key"

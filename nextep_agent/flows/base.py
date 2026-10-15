@@ -17,6 +17,7 @@ from pathlib import Path
 
 from cryptography import x509
 
+from nextep_agent import platform_paths
 from nextep_agent.config.models import FlowConfig
 
 
@@ -105,13 +106,25 @@ class FlowRunner(ABC):
         )
 
     # -- output paths ---------------------------------------------------------
+    def _cert_dir(self) -> str:
+        """Cert output directory: the flow's configured dir, or — when the pulled
+        config leaves it blank — the OS-conventional location for this node
+        (Debian /etc/ssl/certs, RHEL/OL /etc/pki/tls/certs). The SPOG serves many
+        hosts and cannot know a node's OS, so the per-OS default is resolved here."""
+        return self.flow.cert_output_dir or platform_paths.cert_output_dir()
+
+    def _key_dir(self) -> str:
+        """Key output directory: the flow's configured dir, or the OS-conventional
+        private-key location for this node when blank (see :meth:`_cert_dir`)."""
+        return self.flow.key_output_dir or platform_paths.key_output_dir()
+
     def _cert_path(self) -> Path:
-        """``<cert_output_dir>/<name>.pem`` — this flow's own cert file."""
-        return Path(self.flow.cert_output_dir) / f"{self.flow.name}.pem"
+        """``<cert dir>/<name>.pem`` — this flow's own cert file."""
+        return Path(self._cert_dir()) / f"{self.flow.name}.pem"
 
     def _key_path(self) -> Path:
-        """``<key_output_dir>/<name>.key`` — this flow's own key file."""
-        return Path(self.flow.key_output_dir) / f"{self.flow.name}.key"
+        """``<key dir>/<name>.key`` — this flow's own key file."""
+        return Path(self._key_dir()) / f"{self.flow.name}.key"
 
     # -- self-gating ----------------------------------------------------------
     def _up_to_date(self) -> "x509.Certificate | None":
@@ -151,12 +164,12 @@ class FlowRunner(ABC):
     def _write(self, cert_pem: str, key_pem: str | None) -> bool:
         """Write cert (and key, if given) to ``<dir>/<name>.{pem,key}``. Return
         whether the cert content changed from what was already on disk."""
-        if not self.flow.name or not self.flow.cert_output_dir:
-            raise RuntimeError("flow is missing a name or cert output directory")
+        # Output dirs resolve to the OS default when the config leaves them blank
+        # (see _cert_dir/_key_dir), so only a missing flow name is fatal here.
+        if not self.flow.name:
+            raise RuntimeError("flow is missing a name")
         changed = _write_if_changed(self._cert_path(), cert_pem, mode=0o644)
         if key_pem is not None:
-            if not self.flow.key_output_dir:
-                raise RuntimeError("flow is missing a key output directory")
             _write_if_changed(self._key_path(), key_pem, mode=0o600)
         return changed
 

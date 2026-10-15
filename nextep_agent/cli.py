@@ -48,7 +48,11 @@ def cmd_status(_args, org) -> int:
     for flow in cfg.flows:
         import os
 
-        cert_path = os.path.join(flow.cert_output_dir, f"{flow.name}.pem")
+        from nextep_agent import platform_paths
+
+        # Mirror the runner: blank output dir -> OS-conventional default.
+        cert_dir = flow.cert_output_dir or platform_paths.cert_output_dir()
+        cert_path = os.path.join(cert_dir, f"{flow.name}.pem")
         na = _cert_not_after(cert_path)
         if na is None:
             state = "no cert on disk"
